@@ -1,0 +1,94 @@
+class Item:
+    def __init__(self, char, weight, value):
+        self.char = char
+        self.weight = weight
+        self.value = value
+        self.ratio = value / weight
+
+
+def knapsack(items, capacity, disease, start_score):
+    items = sorted(items, key=lambda x: x.ratio, reverse=True)
+    max_value = -1
+    best_combo = []
+    
+    required_char = None
+    if disease == "паранойя":
+        required_char = 'd'
+    elif disease == "астма":
+        required_char = 'i'
+
+    def node_bound_count(i, weight, value):
+        if weight > capacity:
+            return 0
+        node_value = value
+        j = i
+        total_weight = weight
+
+        while j < len(items) and total_weight + items[j].weight <= capacity:
+            node_value += items[j].value
+            total_weight += items[j].weight
+            j += 1
+        if j < len(items):
+            node_value += (capacity - total_weight) * items[j].ratio
+
+        return node_value
+
+    def branch_bound(i, weight, value, current_combo):
+        nonlocal max_value, best_combo
+
+        if weight <= capacity:
+            if start_score + value > max_value:
+                max_value = start_score + value
+                best_combo = list(current_combo)
+
+        if i == len(items):
+            return
+
+        item = items[i]
+
+        # Ветка 1: НЕ берем предмет
+        if item.char != required_char:
+            if node_bound_count(i + 1, weight, value) + start_score > max_value:
+                branch_bound(i + 1, weight, value, current_combo)
+
+        # Ветка 2: БЕРЕМ предмет
+        if node_bound_count(i + 1, weight + item.weight, value + item.value) + start_score > max_value:
+            current_combo.append(item)
+            branch_bound(i + 1, weight + item.weight, value + item.value, current_combo)
+            current_combo.pop()
+
+    # --- ВАЖНО: Эти строки должны быть на уровне функции knapsack ---
+    branch_bound(0, 0, 0, [])
+    return max_value, best_combo
+
+
+def draw_inventory(best_combo, rows, cols):
+    grid = [['.' for _ in range(cols)] for _ in range(rows)]
+    pos = 0
+    for item in best_combo:
+        for _ in range(item.weight):
+            grid[pos // cols][pos % cols] = item.char
+            pos += 1
+    
+    for row in grid:
+        print(" ".join(row))
+
+
+if __name__ == '__main__':
+    items_list = [
+        Item('r', 3, 25), Item('p', 2, 15), Item('a', 2, 15), Item('m', 2, 20),
+        Item('i', 1, 5),  Item('k', 1, 15), Item('x', 3, 20), Item('t', 1, 25),
+        Item('f', 1, 15), Item('d', 1, 10), Item('s', 2, 20), Item('c', 2, 20)
+    ]
+    
+    ROWS = 3
+    COLS = 3
+    CAPACITY = ROWS * COLS
+    START_SCORE = 15
+    DISEASE = "паранойя"
+
+    final_score, best = knapsack(items_list, CAPACITY, DISEASE, START_SCORE)
+    
+    print(f"Максимальный итоговый счет: {final_score}")
+    print(f"Предметы: {', '.join(i.char for i in best)}")
+    draw_inventory(best, ROWS, COLS)
